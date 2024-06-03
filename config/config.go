@@ -28,7 +28,6 @@ func InitDB() {
 	if err != nil {
 		panic("数据库连接失败")
 	}
-
 	// 测试数据库连接
 	sqlDB, err := DB.DB()
 	if err != nil {
@@ -64,6 +63,13 @@ func SyncUsers(db *gorm.DB) error {
 
 	// 遍历学生信息
 	for _, student := range students {
+		// 检查是否已经存在相同的 Account
+		var existingUser models.User
+		if err := db.Where("account = ?", student.SID).First(&existingUser).Error; err == nil {
+			// 如果找到已经存在的用户，跳过插入
+			continue
+		}
+
 		roleID := 3 // 默认角色ID为3
 		if student.SID == "admin" {
 			roleID = 1
@@ -80,10 +86,13 @@ func SyncUsers(db *gorm.DB) error {
 
 	// 遍历教师信息
 	for _, teacher := range teachers {
-		if teacher.TID == "" {
-			log.Printf("教师账号为空: %v", teacher)
+		// 检查是否已经存在相同的 Account
+		var existingUser models.User
+		if err := db.Where("account = ?", teacher.TID).First(&existingUser).Error; err == nil {
+			// 如果找到已经存在的用户，跳过插入
 			continue
 		}
+
 		users = append(users, models.User{
 			Account:   teacher.TID,
 			Password:  teacher.Password,
@@ -93,10 +102,11 @@ func SyncUsers(db *gorm.DB) error {
 			UpdatedAt: time.Now(),
 		})
 	}
-
-	// 批量插入用户信息
-	if err := db.Create(&users).Error; err != nil {
-		return err
+	// 不为空批量插入用户信息
+	if users != nil {
+		if err := db.Create(&users).Error; err != nil {
+			return err
+		}
 	}
 
 	return nil

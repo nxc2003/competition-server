@@ -7,21 +7,20 @@ import (
 )
 
 func SetupRouter(r *gin.Engine) *gin.Engine {
-	r.GET("/get_user", controllers.GetUser)
 
 	// 身份验证路由
 	auth := r.Group("/auth")
 	{
 		//获取验证码
-		auth.GET("/captcha", controllers.GenerateCaptcha)
+		auth.GET("/code", controllers.GenerateCaptcha)
 		//登录
 		auth.POST("/login", controllers.Login)
 	}
-
 	// 应用登录检查和权限检查中间件
 	r.Use(middlewares.LoginCheckMiddleware())
 	r.Use(middlewares.AuthCheckMiddleware())
-
+	//获取用户数据--初始化+权限
+	r.GET("/get_user", controllers.InitUser)
 	// 权限相关路由
 	permission := r.Group("/permission")
 	{
@@ -31,14 +30,27 @@ func SetupRouter(r *gin.Engine) *gin.Engine {
 		permission.PUT("/update", controllers.UpdatePermission)
 	}
 
+	// 用户相关路由
+	users := r.Group("/user")
+	{
+		// 返回学生/老师信息
+		users.GET("/list", controllers.ListUsers)
+		users.PUT("/update", controllers.UpdateUser)
+		users.PATCH("/password", controllers.UpdatePassword)
+		users.PUT("/reset", controllers.ResetPassword)
+		users.POST("/add", controllers.AddUsers)
+		users.POST("/import", controllers.AddImport)
+		users.DELETE("/delete", controllers.DeleteUsers)
+	}
+
 	// 角色相关路由 -- 即超级管理员 管理员 学生等权限的管理
 	role := r.Group("/role")
 	{
 		role.GET("/list", controllers.ListRoles)
 		role.POST("/add", controllers.AddRole)
+		role.POST("/update", controllers.UpdateRole)
 		role.DELETE("/delete", controllers.DeleteRole)
-		role.PUT("/update", controllers.UpdateRole)
-		role.PUT("/grant", controllers.GrantRole)
+		role.POST("/grant", controllers.GrantRole)
 	}
 	// 比赛相关路由
 	race := r.Group("/race")
@@ -70,11 +82,6 @@ func SetupRouter(r *gin.Engine) *gin.Engine {
 
 	//// 使用 SetUser 中间件
 	//r.Use(middlewares.SetUser())
-	// 用户相关路由
-	users := r.Group("/user")
-	{
-		users.GET("/info", middlewares.GetUser)
-	}
 
 	return r
 }

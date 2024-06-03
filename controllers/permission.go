@@ -1,14 +1,12 @@
 package controllers
 
 import (
-	"errors"
-	"net/http"
-	"strconv"
-
 	"competition-server/config"
 	"competition-server/models"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"net/http"
 )
 
 // ListPermissions 获取权限列表
@@ -20,10 +18,7 @@ func ListPermissions(c *gin.Context) {
 	if label := c.Query("label"); label != "" {
 		query = query.Where("label LIKE ?", "%"+label+"%")
 	}
-
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "1"))
-	query.Count(&count).Limit(limit).Offset(limit * (offset - 1)).Find(&permissions)
+	query.Count(&count).Find(&permissions)
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":  200,

@@ -1,18 +1,12 @@
 package middlewares
 
 import (
+	"competition-server/models"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
-
-type authenticatedUser struct {
-	Account     string
-	Identity    string
-	Role        string
-	Permissions []string
-}
 
 // CheckPermission 检查用户是否具有所需的权限
 func CheckPermission(permission string) gin.HandlerFunc {
@@ -24,7 +18,7 @@ func CheckPermission(permission string) gin.HandlerFunc {
 			return
 		}
 
-		authUser := user.(AuthenticatedUser)
+		authUser := user.(models.AuthenticatedUser)
 		for _, p := range authUser.Permissions {
 			if p == permission {
 				c.Next()

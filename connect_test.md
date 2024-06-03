@@ -15,7 +15,7 @@
 "account": "admin",
 "password": "123",
 "identity": "student",
-"code": "03795"
+"code": "由第一步获取"
 }
 ```
 ## 用户操作功能

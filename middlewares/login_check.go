@@ -14,13 +14,6 @@ import (
 // TokenKey 是用于签名和验证 JWT 令牌的密钥
 var TokenKey = "token-ncu_university-competition_server"
 
-type AuthenticatedUser struct {
-	Account     string       // 账号
-	Identity    string       // 身份
-	Role        models.Roles // 角色
-	Permissions []string     // 权限
-}
-
 // LoginCheckMiddleware 是一个中间件函数，用于检查用户的登录状态和权限
 func LoginCheckMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -81,7 +74,10 @@ func LoginCheckMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
+		//// 测试代码：返回查询出的角色权限信息--获取成功
+		//c.JSON(http.StatusOK, gin.H{"code": 200, "msg": "角色权限查询成功", "data": rolePermissions})
+		//c.Abort()
+		//return
 		var permissions []models.Permissions
 		for _, rp := range rolePermissions {
 			var permission models.Permissions
@@ -110,7 +106,7 @@ func LoginCheckMiddleware() gin.HandlerFunc {
 		//return
 
 		// 将用户信息和权限添加到 Gin 的上下文中
-		c.Set("authenticatedUser", AuthenticatedUser{
+		c.Set("authenticatedUser", models.AuthenticatedUser{
 			Account:     user.Account,
 			Identity:    user.Identity,
 			Role:        role,

@@ -59,7 +59,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("uid", tokenString, int(exp.Unix()), "/", "", false, true)
+	c.SetCookie("uid", tokenString, int(exp.Unix()), "/", "", false, false)
 	c.JSON(http.StatusOK, gin.H{"code": 200, "msg": "登陆成功"})
 }
 

@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 // ListRecords 处理 GET 请求以列出记录
@@ -18,33 +19,79 @@ func ListRecords(c *gin.Context) {
 		query = query.Where("score LIKE ?", "%"+score+"%")
 	}
 	if title := c.Query("title"); title != "" {
-		query = query.Where("race.title LIKE ?", "%"+title+"%")
+		query = query.Joins("JOIN races ON races.race_id = records.race_id").Where("races.title LIKE ?", "%"+title+"%")
 	}
 	if tname := c.Query("tname"); tname != "" {
-		query = query.Where("teacher.name LIKE ?", "%"+tname+"%")
+		query = query.Joins("JOIN teachers ON teachers.tid = records.tid").Where("teachers.name LIKE ?", "%"+tname+"%")
 	}
 	if sname := c.Query("sname"); sname != "" {
-		query = query.Where("student.name LIKE ?", "%"+sname+"%")
+		query = query.Joins("JOIN students ON students.sid = records.sid").Where("students.name LIKE ?", "%"+sname+"%")
 	}
-
+	if Status := c.Query("status"); Status != "" {
+		levelInt, err := strconv.Atoi(Status)
+		if err == nil {
+			query = query.Where("status = ?", levelInt)
+		}
+	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "1"))
-	query.Count(&count).Limit(limit).Offset(limit * (offset - 1)).Find(&records)
+	query.Count(&count).Limit(limit).Offset(limit * (offset - 1)).Find(&records).Order("create_time DESC")
+
+	var result []map[string]interface{}
+	for _, record := range records {
+		result = append(result, map[string]interface{}{
+			"record_id":   record.RecordID,
+			"title":       record.Race.Title,
+			"sname":       record.Student.Name,
+			"tname":       record.Teacher.Name,
+			"score":       record.Score,
+			"status":      record.Status,
+			"create_time": record.CreateTime,
+			"update_time": record.UpdateTime,
+			"description": record.Description,
+		})
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":  200,
 		"msg":   "查询成功",
 		"count": count,
-		"data":  records,
+		"data":  result,
 	})
 }
 
 // AddRecord 处理 POST 请求以添加新记录
 func AddRecord(c *gin.Context) {
-	var data models.Records
-	if err := c.ShouldBindJSON(&data); err != nil {
+	var input struct {
+		RaceID int    `json:"race_id"`
+		SID    string `json:"sid"`
+		Score  string `json:"score"`
+		TID    string `json:"tid"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数有误"})
 		return
+	}
+	//指导老师和成绩为可选字段
+	var TID string
+	var Score string
+	if input.TID == "" {
+		TID = ""
+	}
+	if input.Score == "" {
+		Score = ""
+	}
+	// 创建记录数据
+	data := models.Records{
+		RaceID:      input.RaceID,
+		SID:         input.SID,
+		TID:         TID,
+		Score:       Score,
+		Status:      0,  // 默认值
+		Description: "", // 默认值
+		CreateTime:  time.Now(),
+		UpdateTime:  time.Now(),
 	}
 
 	if msg := validateRecord(data); msg != "" {
@@ -89,7 +136,7 @@ func UpdateRecord(c *gin.Context) {
 	}
 
 	if checkPermission(c, "record:update") {
-		if err := config.DB.Model(&record).Updates(data).Error; err != nil {
+		if err := config.DB.Model(&models.Records{}).Where("record_id = ?", data.RecordID).Update("score", data.Score).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "msg": "修改失败"})
 			return
 		}
@@ -121,7 +168,8 @@ func validateRecord(data models.Records) string {
 		return "比赛不存在"
 	}
 
-	if err := config.DB.First(&models.Students{}, data.SID).Error; err != nil {
+	var student models.Students
+	if err := config.DB.Where("sid = ?", data.SID).First(&student).Error; err != nil {
 		return "学生信息不存在"
 	}
 
@@ -134,13 +182,6 @@ func validateRecord(data models.Records) string {
 	return ""
 }
 
-type AuthenticatedUser struct {
-	Account     string
-	Identity    string
-	Role        models.Roles
-	Permissions []string
-}
-
 // checkPermission 检查用户是否具有所需的权限
 func checkPermission(c *gin.Context, permission string) bool {
 	user, exists := c.Get("authenticatedUser")
@@ -148,7 +189,7 @@ func checkPermission(c *gin.Context, permission string) bool {
 		return false
 	}
 
-	authUser := user.(AuthenticatedUser)
+	authUser := user.(models.AuthenticatedUser)
 	for _, p := range authUser.Permissions {
 		if p == permission {
 			return true
